@@ -1,0 +1,736 @@
+module active(a,b,c,out,rdy,en);
+input[7:0] a,b,c,out;
+output rdy;
+input en;
+
+assign out= (en) ? a+b+c:8'b0;
+assign rdy=1'b1;
+// will improve;
+endmodule
+
+module FSM_test(
+    input logic clk,
+    input logic [11:0] ready,
+    output logic [16:0] en,
+    input logic rst
+);
+
+logic load_l1a;
+logic load_l1b;
+logic load_l2a;
+logic load_l2b;
+logic load_l3a;
+
+logic en_1a1;
+logic en_1a2;
+logic en_1a3;
+logic en_1b1;
+logic en_1b2;
+logic en_1b3;
+logic en_1c1;
+logic en_1c2;
+logic en_1c3;
+
+logic en_active_l1a;
+logic en_active_l1b;
+logic en_active_l3c;
+
+logic rdy_1a1=1'b1;
+logic rdy_1a2=1'b1;
+logic rdy_1a3=1'b1;
+logic rdy_1b1=1'b1;
+logic rdy_1b2=1'b1;
+logic rdy_1b3=1'b1;
+logic rdy_1c1=1'b1;
+logic rdy_1c2=1'b1;
+logic rdy_1c3=1'b1;
+logic rdy_act_l1a=1'b1;
+logic rdy_act_l1b=1'b1;
+logic rdy_act_l3a=1'b1;
+
+assign en[0]=load_l1a;
+assign en[1]=load_l1b;
+assign en[2]=load_l2a;
+assign en[3]=load_l2b;
+assign en[4]=load_l3a;
+
+assign en[5]=en_1a1;
+assign en[6]=en_1a2;
+assign en[7]=en_1a3;
+assign en[8]=en_1b1;
+assign en[9]=en_1b2;
+assign en[10]=en_1b3;
+assign en[11]=en_1c1;
+assign en[12]=en_1c2;
+assign en[13]=en_1c3;
+
+assign en[14]=en_active_l1a;
+assign en[15]=en_active_l1b;
+assign en[16]=en_active_l3c;
+
+`define halt 6'd0
+
+`define rst 6'd1
+
+`define layer_1_init 6'd2
+`define layer_1_act 6'd3
+`define layer_1_vdff 6'd4
+
+`define layer_2_init 6'd5
+`define layer_2_act 6'd6
+`define layer_2_vdff 6'd7
+
+`define layer_3_init 6'd8
+`define layer_3_act 6'd9
+`define layer_3_vdff 6'd10
+
+`define done 6'd11
+
+logic [5:0] curr_state,next_state;
+logic [5:0] next;
+
+always @(posedge clk) begin
+    casex({curr_state})
+        `halt: begin
+                 if (rst==1'b1) begin
+                     next={`rst};
+                 end else begin
+                     next=(`layer_1_init);
+                 end
+               end 
+        `rst:begin
+                 if (rst==1'b1) begin
+                     next={`rst};
+                 end else begin
+                     next=(`layer_1_init);
+                 end
+               end 
+        `layer_1_init: begin if((rdy_1a1 && rdy_1a2 && rdy_1a3)==1'b1) begin
+            next={`layer_1_act};
+        end else begin
+            next={`layer_1_init};
+        end
+	end
+
+        `layer_1_act : begin next={6'd12}; 
+			end
+        {6'd12}:next={6'd13};
+        {6'd13}:next={6'd14};
+        {6'd14}:next={6'd15};
+        {6'd15}:begin if((rdy_1a1 && rdy_1a2 && rdy_1a3)==1'b1) begin
+            next={`layer_1_vdff};
+        end else begin
+            next={`layer_1_init};
+        end
+end
+
+        `layer_1_vdff:begin if((rdy_act_l1a)==1'b1) begin
+            next={`layer_2_init};
+        end else begin
+            next={`layer_1_vdff};
+        end
+end
+
+        `layer_2_init:begin if((rdy_1b1 && rdy_1b2 && rdy_1b3)==1'b1) begin
+            next={`layer_2_act};
+        end else begin
+            next={`layer_2_init};
+        end
+end
+        `layer_2_act : next={6'd16};
+        {6'd16}:next={6'd17};
+        {6'd17}:next={6'd18};
+        {6'd18}:next={6'd19};
+        {6'd19}:begin if((rdy_1b1 && rdy_1b2 && rdy_1b3)==1'b1) begin
+            next={`layer_2_vdff};
+        end else begin
+            next={`layer_2_init};
+        end
+end
+        `layer_2_vdff:begin if((rdy_act_l1b)==1'b1) begin
+            next={`layer_2_init};
+        end else begin
+            next={`layer_3_vdff};
+        end
+end
+        `layer_3_init:begin if((rdy_1c1 && rdy_1c2 && rdy_1c3)==1'b1) begin
+            next={`layer_3_act};
+        end else begin
+            next={`layer_3_init};
+        end
+end
+        `layer_3_act :  next={6'd20};
+        {6'd20}:next={6'd21};
+        {6'd21}:next={6'd22};
+        {6'd22}:next={6'd23};
+        {6'd23}:begin if((rdy_1c1 && rdy_1c2 && rdy_1c3)==1'b1) begin
+            next={`layer_3_vdff};
+        end else begin
+            next={`layer_3_init};
+        end
+end
+        `layer_3_vdff: begin 
+	if((rdy_act_l3a)==1'b1) begin
+            next={`done};
+        end else begin
+            next={`layer_3_vdff};
+        end
+end
+        `done: next={`halt};
+        default: next={`rst};        
+    endcase
+end
+
+
+vDFF #(6) FSM_VDFF(
+    .clk(clk),
+    .load(1'b1),
+    .out(curr_state),
+    .in(next_state)
+);
+
+always @(posedge clk) begin
+    casex({curr_state}) 
+    `halt : begin 
+            load_l1a     =1'b1;
+            load_l1b     =1'b1;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+    `rst :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+    `layer_1_init :begin 
+            load_l1a     =1'b1;
+            load_l1b     =1'b1;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+
+    `layer_1_act  :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b1;
+            en_1a2       =1'b1;
+            en_1a3       =1'b1;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b1;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+     `layer_1_vdff :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b1;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b1;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+    `layer_2_init :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+
+     `layer_2_act  :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b1;
+            en_1b2       =1'b1;
+            en_1b3       =1'b1;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b1;
+            en_active_l3c=1'b0;
+    end
+    `layer_2_vdff :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b1;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b1;
+            en_active_l3c=1'b0;
+    end
+
+    `layer_3_init :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+    `layer_3_act  :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b1;
+            en_1c2       =1'b1;
+            en_1c3       =1'b1;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b1;
+    end
+
+    `layer_3_vdff :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b1;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b1;
+    end
+    `done         :begin 
+            load_l1a     =1'b0;
+            load_l1b     =1'b0;
+            load_l2a     =1'b0;
+            load_l2b     =1'b0;
+            load_l3a     =1'b0;
+            en_1a1       =1'b0;
+            en_1a2       =1'b0;
+            en_1a3       =1'b0;
+            en_1b1       =1'b0;
+            en_1b2       =1'b0;
+            en_1b3       =1'b0;
+            en_1c1       =1'b0;
+            en_1c2       =1'b0;
+            en_1c3       =1'b0;
+            en_active_l1a=1'b0;
+            en_active_l1b=1'b0;
+            en_active_l3c=1'b0;
+    end
+endcase
+end
+
+endmodule
+
+module vDFF(clk, load, in, out); // program counter
+  parameter n = 9;  // width
+  input clk, load;
+  input [n-1:0] in;
+  output [n-1:0] out;
+  reg [n-1:0] out;
+  wire [n-1:0] next_out;
+
+  assign next_out = (load ? in : out);
+
+  always @(posedge clk)
+    out = next_out;
+endmodule 
+
+module hardware_neural_net_fsm(
+ input logic clk,
+ input logic XOR_1,
+ input logic XOR_2,
+ output logic XOR_ans,
+
+ input logic test,
+ input logic train
+ );
+
+ logic [11:0] ready,
+ logic [16:0] en,
+//bus design
+
+
+logic in_l1a;
+logic in_l1b;
+logic in_l2a;
+logic in_l2b;
+logic in_l3a;
+
+logic out_l1a;
+logic out_l1b;
+logic out_l2a;
+logic out_l2b;
+logic out_l3a;
+
+logic out_bias_1;
+logic out_bias_2;
+
+
+//input bus decoder
+logic load_l1a;
+logic load_l1b;
+logic load_l2a;
+logic load_l2b;
+logic load_l3a;
+
+logic en_1a1;
+logic en_1a2;
+logic en_1a3;
+logic en_1b1;
+logic en_1b2;
+logic en_1b3;
+logic en_1c1;
+logic en_1c2;
+logic en_1c3;
+
+logic en_active_l1a;
+logic en_active_l1b;
+logic en_active_l3c;
+
+assign load_l1a=en[0];
+assign load_l1b=en[1];
+assign load_l2a=en[2];
+assign load_l2b=en[3];
+assign load_l3a=en[4];
+assign en_1a1=en[5];
+assign en_1a2=en[6];
+assign en_1a3=en[7];
+assign en_1b1=en[8];
+assign en_1b2=en[9];
+assign en_1b3=en[10];
+assign en_1c1=en[11];
+assign en_1c2=en[12];
+assign en_1c3=en[13];
+assign en_active_l1a=en[14];
+assign en_active_l1b=en[15];
+assign en_active_l3c=en[16];
+//biased outputs
+logic biased_1a1;
+logic biased_1a2;
+logic biased_1a3;
+logic biased_1b1;
+logic biased_1b2;
+logic biased_1b3;
+logic biased_1c1;
+logic biased_1c2;
+logic biased_1c3;
+
+//output bus design
+logic rdy_1a1;
+logic rdy_1a2;
+logic rdy_1a3;
+logic rdy_1b1;
+logic rdy_1b2;
+logic rdy_1b3;
+logic rdy_1c1;
+logic rdy_1c2;
+logic rdy_1c3;
+logic rdy_act_l1a;
+logic rdy_act_l1b;
+logic rdy_act_l3a;
+
+assign ready={rdy_1a1,rdy_1a2,rdy_1a3,rdy_1b1,rdy_1b2,rdy_1b3,rdy_1c1,rdy_1c2,rdy_1c3,rdy_act_l1a,rdy_act_l1b,rdy_act_l3a};
+
+neuron_ff  #(8) l1a(.clk(clk), .load(load_l1a), .in(XOR_1),  .out(out_l1a)); 
+neuron_ff  #(8) l1b(.clk(clk), .load(load_l1b), .in(XOR_2),  .out(out_l1b)); 
+neuron_ff  #(8) l2a(.clk(clk), .load(load_l2a), .in(in_l2a), .out(out_l2a)); 
+neuron_ff  #(8) l2b(.clk(clk), .load(load_l2b), .in(in_l2b), .out(out_l2b)); 
+neuron_ff  #(8) l3a(.clk(clk), .load(load_l3a), .in(in_l3a),.out(XOR_ans)); 
+
+neuron_ff  #(8) bias_l1(.clk(clk), .load(1'b1), .in(1'b1), .out(out_bias_1)); 
+neuron_ff  #(8) bias_l2(.clk(clk), .load(1'b1), .in(1'b1), .out(out_bias_2)); 
+
+
+one_io_bias layer_1a1(.clk(clk),.in(out_l1a),   .enable(en_1a1),.ready(rdy_1a1),.biased_out(biased_1a1),.biased_val(1'b1));
+one_io_bias layer_1a2(.clk(clk),.in(out_l1b),   .enable(en_1a2),.ready(rdy_1a2),.biased_out(biased_1a2),.biased_val(1'b1));
+one_io_bias layer_1a3(.clk(clk),.in(out_bias_1),.enable(en_1a3),.ready(rdy_1a3),.biased_out(biased_1a3),.biased_val(1'b1));
+one_io_bias layer_1b1(.clk(clk),.in(out_l1a),   .enable(en_1b1),.ready(rdy_1b1),.biased_out(biased_1b1),.biased_val(1'b1));
+one_io_bias layer_1b2(.clk(clk),.in(out_l1b),   .enable(en_1b2),.ready(rdy_1b2),.biased_out(biased_1b2),.biased_val(1'b1));
+one_io_bias layer_1b3(.clk(clk),.in(out_bias_1),.enable(en_1b3),.ready(rdy_1b3),.biased_out(biased_1b3),.biased_val(1'b1));
+one_io_bias layer_1c1(.clk(clk),.in(out_l2a),   .enable(en_1c1),.ready(rdy_1c1),.biased_out(biased_1c1),.biased_val(1'b1));
+one_io_bias layer_1c2(.clk(clk),.in(out_l2b),   .enable(en_1c2),.ready(rdy_1c2),.biased_out(biased_1c2),.biased_val(1'b1));
+one_io_bias layer_1c3(.clk(clk),.in(out_bias_2),.enable(en_1c3),.ready(rdy_1c3),.biased_out(biased_1c3),.biased_val(1'b1));
+
+
+
+active active_l1a(.a(biased_1a1),.b(biased_1a2),.c(biased_1a3),.out(in_l2a),.rdy(rdy_act_l1a),.en(en_active_l1a));
+active active_l1b(.a(biased_1b1),.b(biased_1b2),.c(biased_1b3),.out(in_l2b),.rdy(rdy_act_l1b),.en(en_active_l1b));
+active active_l3a(.a(biased_1c1),.b(biased_1c2),.c(biased_1c3),.out(in_l3a),.rdy(rdy_act_l3a),.en(en_active_l3c));
+
+
+FSM_test  ANN_feed_forward_MAIN_FSM(
+    .clk(clk),
+    .ready(ready),
+    .en(en),
+    .rst(1'b0)
+);
+
+
+
+endmodule
+
+module neuron_ff(clk, load, in, out); 
+  parameter n = 9;  // width
+  input clk, load;
+  input [n-1:0] in;
+  output [n-1:0] out;
+  reg [n-1:0] out;
+  wire [n-1:0] next_out;
+
+  assign next_out = (load ? in : out);
+
+  always @(posedge clk)
+    out = next_out;
+endmodule 
+
+module one_io_bias_tb();
+logic  clk;
+logic [7:0] in;
+logic  enable;
+logic  ready;
+logic [7:0] biased_out;
+logic  [7:0] biased_val;
+
+one_io_bias b1(
+ .clk(clk),
+ .in(in),
+ .enable(enable),
+ .ready(ready),
+ .biased_out(biased_out),
+ .biased_val(biased_out)
+);
+
+initial forever begin
+   clk =1'b1;
+   #5;
+   clk=1'b0; 
+   #5;
+end
+
+initial begin
+    #30;
+    in=8'd5;
+    biased_val=8'd5;
+    #15;
+    enable=1'b1;
+    #15;
+    enable=1'b0;
+    #15;
+    $stop;
+end
+
+endmodule
+
+module one_io_bias(
+ clk,
+ in,
+ enable,
+ ready,
+ biased_out,
+ biased_val);
+
+input logic [7:0] in,biased_val;
+input logic enable;
+input logic clk;
+output logic ready;
+output logic [7:0] biased_out;
+
+logic [3:0] curr_state,next_state;
+logic [5:0] next;
+logic update;
+logic [7:0]mult_val;
+
+//state machine states
+`define halt 4'd1
+`define rdy 4'd2
+`define procressing 4'd3
+`define done 4'd4
+
+always_ff@(posedge clk)
+begin
+casex({curr_state})
+`halt: next ={`rdy,1'b0,1'b0};
+`rdy:   if (enable==1'b1) begin
+            next={`procressing,1'b1,1'b0};
+        end else begin
+            next={`rdy,1'b0,1'b1};
+        end
+`procressing:next={`done,1'b1,1'b0};   
+`done: next={`rdy,1'b0,1'b0};
+default: next={`rdy,1'b0,1'b0};
+endcase
+end
+
+assign next_state=next[5:2];
+assign update=next[1];
+assign ready=next[0];
+assign mult_val=in*biased_val;
+
+vDFF #(4) FSM_VDFF(
+    .clk(clk),
+    .load(1'b1),
+    .out(curr_state),
+    .in(next_state)
+);
+
+vDFF #(8) UPDATE_VDFF(
+    .clk(update),
+    .load(1'b1),
+    .out(biased_out),
+    .in(mult_val)
+);
+
+endmodule 
+
+module vDFF(clk, load, in, out); // program counter
+  parameter n = 9;  // width
+  input clk, load;
+  input [n-1:0] in;
+  output [n-1:0] out;
+  reg [n-1:0] out;
+  wire [n-1:0] next_out;
+
+  assign next_out = (load ? in : out);
+
+  always @(posedge clk)
+    out = next_out;
+endmodule 
+
+module tb_fsm();
+
+logic clk;
+logic XOR_1;
+logic XOR_2;
+logic XOR_ans;
+logic test;
+logic train;
+
+hardware_neural_net_fsm H1(
+ .clk(clk);
+ .XOR_1(XOR_1);
+ .XOR_2(XOR_2);
+ .XOR_ans(XOR_ans);
+ .test(1'b1);
+ .train(1'b0);   
+ );
+initial forever begin
+    clk=1'b1;
+    #5;
+    clk=1'b0;
+    #5;
+end
+
+initial begin
+    XOR_1=1'b1;
+    XOR_2=1'b1;
+    #600;
+    $stop;
+end
+endmodule
