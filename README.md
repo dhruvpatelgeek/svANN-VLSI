@@ -4,7 +4,7 @@ The following is a scalable neural network with 3 stages that predicts the outpu
 
 ![alt text](https://github.com/dhruvpatelgeek/svANN_FPGA/blob/master/Screen%20Shot%202019-10-07%20at%2011.14.17%20PM.png)
 
->>here you can see the three layers firing up one after the other 
+>here you can see the three layers firing up one after the other 
 
 ![alt text](https://github.com/dhruvpatelgeek/svANN_FPGA/blob/master/Screen%20Shot%202019-10-07%20at%2011.14.47%20PM.png)
 
