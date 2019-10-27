@@ -14,3 +14,4 @@
 
 ![alt text](https://github.com/dhruvpatelgeek/svANN_FPGA/blob/master/Screen%20Shot%202019-10-07%20at%2011.30.11%20PM.png)
 >> this is the master FSM Block diagram
+![alt_text](https://github.com/dhruvpatelgeek/svANN_FPGA/blob/master/Screen%20Shot%202019-10-26%20at%205.14.50%20PM.png)
