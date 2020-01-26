@@ -1,6 +1,8 @@
 # svANN_FPGA
 >The following is a VLSI neural network with 3 stages that predicts the output of a XOR FUNCTION.
+![final chip](https://github.com/dhruvpatelgeek/svANN-FPGA/blob/master/Screen%20Shot%202020-01-25%20at%2011.44.51%20PM.png)
 
+![basic diagram](https://github.com/dhruvpatelgeek/svANN-FPGA/blob/master/Screen%20Shot%202020-01-25%20at%2011.43.28%20PM.png)
 
 ![alt text](https://github.com/dhruvpatelgeek/svANN_FPGA/blob/master/Screen%20Shot%202019-10-07%20at%2011.14.17%20PM.png)
 
